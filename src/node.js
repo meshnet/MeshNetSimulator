@@ -8,6 +8,7 @@ function Node(mac, meta = null) {
 
   // Basic data
   this.mac = mac;
+  console.log(this.mac);
   this.meta = meta;
   this.incoming = [];
   this.outgoing = [];
@@ -16,6 +17,8 @@ function Node(mac, meta = null) {
 
   // Record next hop neighbors
   this.neighbors = {};
+  
+  this.dijkstra = createDijkstra(intNodes, intLinks);
 }
 
 /*
@@ -26,7 +29,7 @@ Node.prototype.step = function () {
   // Send a broadcast to direct neighbors
   if (isEmpty(this.neighbors)) {
     this.outgoing.push(
-      new Packet(this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC)
+      new Packet("TODO: length", 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers("TODO: length", {}))
     );
   }
 
@@ -49,6 +52,7 @@ Node.prototype.step = function () {
     var others = Object.keys(this.neighbors);
     if (others.length) {
       var nextHop = others[Math.floor(Math.random() * others.length)];
+      console.log("Next hop: " + nextHop);
 
       packet.transmitterAddress = this.mac;
       packet.receiverAddress = nextHop;
