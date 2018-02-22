@@ -3,6 +3,14 @@
 * Every node routes a packet to a random neighbor until it reaches the final destination.
 */
 
+// TODO: Need to find a better place
+// getIntNodes()[0].o.mac
+function getNodeByMac(intNodes, mac) {
+  for (var i=0, iLen=intNodes.length; i<iLen; i++) {
+    if (intNodes[i].o.mac == mac) return intNodes[i];
+  }
+}
+
 function Node(mac, meta = null) {
 /* Required fields */
 
@@ -17,8 +25,6 @@ function Node(mac, meta = null) {
 
   // Record next hop neighbors
   this.neighbors = {};
-  
-  this.dijkstra = createDijkstra(intNodes, intLinks);
 }
 
 /*
@@ -26,6 +32,11 @@ function Node(mac, meta = null) {
 * once and sends incoming packets to a random neighbor.
 */
 Node.prototype.step = function () {
+  var intNodes = getIntNodes();
+  var intLinks = getIntLinks();
+  
+  var dijkstra = createDijkstra(intNodes, intLinks);
+  
   // Send a broadcast to direct neighbors
   if (isEmpty(this.neighbors)) {
     this.outgoing.push(
@@ -48,17 +59,21 @@ Node.prototype.step = function () {
       continue;
     }
 
-    // Select random destination
-    var others = Object.keys(this.neighbors);
-    if (others.length) {
-      var nextHop = others[Math.floor(Math.random() * others.length)];
+    // The packet needs to be routed
+    var currentHop = getNodeByMac(intNodes, this.mac); // TODO: Replace with custom map
+    var finalHop = getNodeByMac(intNodes, packet.destinationAddress);// TODO: Replace with custom map
+    var nextHop = dijkstra.getShortestPath(finalHop, currentHop)[0];
+    
+    // var others = Object.keys(this.neighbors);
+    //if (others.length) {
+      //var nextHop = others[Math.floor(Math.random() * others.length)];
       console.log("Next hop: " + nextHop);
 
       packet.transmitterAddress = this.mac;
       packet.receiverAddress = nextHop;
 
       this.outgoing.push(packet);
-    }
+    //}
   }
 }
 
