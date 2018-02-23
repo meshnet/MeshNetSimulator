@@ -11,13 +11,16 @@ function getNodeByMac(intNodes, mac) {
   }
 }
 
-function Node(mac, meta = null) {
+function Node(mac, meta = null, active = true) {
 /* Required fields */
 
   // Basic data
   this.mac = mac;
-  console.log(this.mac);
+
+  if(!active) return // Dont init active components if not active
+  
   this.meta = meta;
+  console.log(this.mac);
   this.incoming = [];
   this.outgoing = [];
 
@@ -25,6 +28,18 @@ function Node(mac, meta = null) {
 
   // Record next hop neighbors
   this.neighbors = {};
+  
+  // Keep a local version of the network
+  var nodes = [];
+  var links = [];
+  
+  // Send a PEERS message on join network
+  this.outgoing.push(
+    new Packet("TODO: length", 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers("TODO: length", {}))
+  );
+}
+
+function updateNetwork(sourceNode, targetNode, value) {
 }
 
 /*
@@ -37,13 +52,6 @@ Node.prototype.step = function () {
   
   var dijkstra = createDijkstra(intNodes, intLinks);
   
-  // Send a broadcast to direct neighbors
-  if (isEmpty(this.neighbors)) {
-    this.outgoing.push(
-      new Packet("TODO: length", 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers("TODO: length", {}))
-    );
-  }
-
   for (var i = 0; i < this.incoming.length; i += 1) {
     var packet = this.incoming[i];
 
@@ -56,6 +64,8 @@ Node.prototype.step = function () {
     // Catch broadcast packets and record neighbor
     if (packet.receiverAddress === BROADCAST_MAC) {
       this.neighbors[packet.transmitterAddress] = true;
+      // {"index":0, "o":new Link(), "source":{"index":0, "o":new Node("mac", null, false)},"target":{"index":1, "o":new Node("mac", null, false)}}
+      // {"o":new Node("mac", null, false)}
       continue;
     }
 
@@ -64,16 +74,11 @@ Node.prototype.step = function () {
     var finalHop = getNodeByMac(intNodes, packet.destinationAddress);// TODO: Replace with custom map
     var nextHop = dijkstra.getShortestPath(finalHop, currentHop)[0];
     
-    // var others = Object.keys(this.neighbors);
-    //if (others.length) {
-      //var nextHop = others[Math.floor(Math.random() * others.length)];
-      console.log("Next hop: " + nextHop);
+    console.log("Next hop: " + nextHop);
 
-      packet.transmitterAddress = this.mac;
-      packet.receiverAddress = nextHop;
-
-      this.outgoing.push(packet);
-    //}
+    packet.transmitterAddress = this.mac;
+    packet.receiverAddress = nextHop;
+    this.outgoing.push(packet);
   }
 }
 
@@ -88,7 +93,7 @@ Node.prototype.getNodeLabel = function () {
   // Count unicast packets
   var count = 0;
   for (var i in this.outgoing) {
-    count += (this.outgoing[i] !== BROADCAST_MAC);
+    count += 1;
   }
   return count ? count.toString() : '';
 }

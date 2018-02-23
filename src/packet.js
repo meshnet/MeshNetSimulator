@@ -1,5 +1,5 @@
 
-var BROADCAST_MAC = 'ff:ff:ff:ff:ff:ff';
+var BROADCAST_MAC = '00:00:00:00:00:00';
 
 function Packet(packetLength, packetType, transmitterAddress, receiverAddress, sourceAddress, destinationAddress, data) {
 /* Required fields */
