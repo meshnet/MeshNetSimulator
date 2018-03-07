@@ -1,14 +1,17 @@
-/*
-* Example Node implementation.
-* Every node routes a packet to a random neighbor until it reaches the final destination.
-*/
-
-// TODO: Need to find a better place
-// getIntNodes()[0].o.mac
-function getNodeByMac(intNodes, mac) {
-  for (var i=0, iLen=intNodes.length; i<iLen; i++) {
-    if (intNodes[i].o.mac == mac) return intNodes[i];
+// TODO: Need to find a better place for this function
+function getNodeByMac(nodes, mac) {
+  for (var i=0, iLen=nodes.length; i<iLen; i++) {
+    if (nodes[i].o.mac == mac) return nodes[i];
   }
+  return false;
+}
+
+function getLinkByMacs(links, source, target) {
+  for (var i=0, iLen=links.length; i<iLen; i++) {
+    if (links[i].source.o.mac == source && links[i].target.o.mac == target) return links[i];
+    if (links[i].source.o.mac == target && links[i].target.o.mac == source) return links[i];
+  }
+  return false;
 }
 
 function Node(mac, meta = null, active = true) {
@@ -30,31 +33,45 @@ function Node(mac, meta = null, active = true) {
   this.neighbors = {};
   
   // Keep a local version of the network
-  var nodes = [];
-  var links = [];
+  this.nodes = [];
+  this.links = [];
+  this.changedLinks = [];
   
   // Send a PEERS message on join network
   this.outgoing.push(
-    new Packet("TODO: length", 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers("TODO: length", {}))
+    new Packet("TODO: length", 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers(0, []))
   );
 }
 
-function updateNetwork(sourceNode, targetNode, value) {
+function updateNetwork(links, nodes, changedLinks, sourceNodeMac, targetNodeMac, value) {
+  getNodeByMac(nodes, sourceNodeMac) ? true : nodes.push({"o": new Node(sourceNodeMac, null, false), "index": nodes.length});
+  getNodeByMac(nodes, targetNodeMac) ? true : nodes.push({"o": new Node(targetNodeMac, null, false), "index": nodes.length});
+  
+  if(!(link = getLinkByMacs(links, sourceNodeMac, targetNodeMac))) {
+    var sourceNode = getNodeByMac(nodes, sourceNodeMac);
+    var targetNode = getNodeByMac(nodes, targetNodeMac);
+    link = {"index":links.length, "o":new Link(), "source":{"index":sourceNode.index, "o":sourceNode.o},"target":{"index":targetNode.index, "o":targetNode.o}}
+    links.push(link);
+    changedLinks.push(link);
+    return;
+  }
+  // Link now contains the link
+  // Just need to modify the link and put it back
+  if (link.o.quality == value) return;
+  link.o.quality = value;
+  links[link.index] = link;
+  changedLinks.push(link);
 }
 
-/*
-* The simple routing algorithm here learns of its neigbhors
-* once and sends incoming packets to a random neighbor.
-*/
 Node.prototype.step = function () {
-  var intNodes = getIntNodes();
-  var intLinks = getIntLinks();
-  
-  var dijkstra = createDijkstra(intNodes, intLinks);
+  var dijkstra = createDijkstra(this.nodes, this.links);
   
   for (var i = 0; i < this.incoming.length; i += 1) {
     var packet = this.incoming[i];
 
+    // Update network
+    updateNetwork(this.links, this.nodes, this.changedLinks, this.mac, packet.transmitterAddress, 100);
+    
     // Packet arrived at the destination
     if (packet.destinationAddress === this.mac) {
       console.log('packet arrived at the destination');
@@ -63,15 +80,18 @@ Node.prototype.step = function () {
 
     // Catch broadcast packets and record neighbor
     if (packet.receiverAddress === BROADCAST_MAC) {
-      this.neighbors[packet.transmitterAddress] = true;
-      // {"index":0, "o":new Link(), "source":{"index":0, "o":new Node("mac", null, false)},"target":{"index":1, "o":new Node("mac", null, false)}}
-      // {"o":new Node("mac", null, false)}
+      if(packet.packetType == 4) { // Packet is PEERS packet
+        for(var ii = 0; ii < packet.data.dataLength; ii++) {
+          var newLink = packet.data.data[ii]
+          updateNetwork(this.links, this.nodes, this.changedLinks, newLink.source, newLink.target, newLink.value);
+        }
+      }
       continue;
     }
-
+    
     // The packet needs to be routed
-    var currentHop = getNodeByMac(intNodes, this.mac); // TODO: Replace with custom map
-    var finalHop = getNodeByMac(intNodes, packet.destinationAddress);// TODO: Replace with custom map
+    var currentHop = getNodeByMac(this.nodes, this.mac); // TODO: Replace with custom map
+    var finalHop = getNodeByMac(this.nodes, packet.destinationAddress);// TODO: Replace with custom map
     var nextHop = dijkstra.getShortestPath(finalHop, currentHop)[0];
     
     console.log("Next hop: " + nextHop);
@@ -79,6 +99,16 @@ Node.prototype.step = function () {
     packet.transmitterAddress = this.mac;
     packet.receiverAddress = nextHop;
     this.outgoing.push(packet);
+  }
+  
+  if(this.changedLinks.length > 0) {
+    var packet = new Packet("TODO: length", 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers(this.changedLinks.length, []));
+    for(var i = 0; i < this.changedLinks.length; i++) {
+      var changedLink = this.changedLinks[i];
+      packet.data.data.push({"source":changedLink.source.o.mac, "target":changedLink.target.o.mac, "value":changedLink.o.quality});
+    }
+    this.outgoing.push(packet);
+    this.changedLinks = [];
   }
 }
 
