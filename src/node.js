@@ -75,6 +75,12 @@ Node.prototype.step = function () {
     // Packet arrived at the destination
     if (packet.destinationAddress === this.mac) {
       console.log('packet arrived at the destination');
+      if(packet.packetType == 1) { // Ping packet
+        packet.destinationAddress = packet.sourceAddress;
+        packet.sourceAddress = this.mac;
+        packet.packetType = 2;
+        this.incoming.push(packet);
+      }
       continue;
     }
 
