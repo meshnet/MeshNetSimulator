@@ -39,7 +39,7 @@ function Node(mac, meta = null, active = true) {
   
   // Send a PEERS message on join network
   this.outgoing.push(
-    new Packet("TODO: length", 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers(0, []))
+    new Packet(13, 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers(0, []))
   );
 }
 
@@ -96,8 +96,8 @@ Node.prototype.step = function () {
     }
     
     // The packet needs to be routed
-    var currentHop = getNodeByMac(this.nodes, this.mac); // TODO: Replace with custom map
-    var finalHop = getNodeByMac(this.nodes, packet.destinationAddress);// TODO: Replace with custom map
+    var currentHop = getNodeByMac(this.nodes, this.mac);
+    var finalHop = getNodeByMac(this.nodes, packet.destinationAddress);
     var nextHop = dijkstra.getShortestPath(finalHop, currentHop)[0];
     
     console.log("Next hop: " + nextHop);
@@ -108,7 +108,7 @@ Node.prototype.step = function () {
   }
   
   if(this.changedLinks.length > 0) {
-    var packet = new Packet("TODO: length", 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers(this.changedLinks.length, []));
+    var packet = new Packet(12 + (1 + this.changedLinks.length * 5), 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers(this.changedLinks.length, []));
     for(var i = 0; i < this.changedLinks.length; i++) {
       var changedLink = this.changedLinks[i];
       packet.data.data.push({"source":changedLink.source.o.mac, "target":changedLink.target.o.mac, "value":changedLink.o.quality});

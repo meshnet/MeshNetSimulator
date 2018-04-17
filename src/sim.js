@@ -238,7 +238,7 @@ function createSim(graph) {
         var src = route.sourceAddress;
         var dst = route.destinationAddress;
         if (src in nodeMap && dst in nodeMap) {
-      var packet = new Packet("TODO", 3, src, src, src, dst, new Service(1, "TODO: length",{"sequenceNumber":0,"flags":"TODO","messageLength":12,"Data":"Hello World!"}));
+      var packet = new Packet(32, 3, src, src, src, dst, new Service(1, 18,{"sequenceNumber":0,"flags":"TODO","messageLength":12,"Data":"Hello World!"}));
           // For route efficiency calculation
           packet.deployedAtStep = self.simStep;
           nodeMap[src].incoming.push(packet);
