@@ -28,6 +28,7 @@ function Node(mac, meta = null, active = true) {
   this.outgoing = [];
 
 /* Additional fields */
+  this.tick = -1;
 
   // Record next hop neighbors
   this.neighbors = {};
@@ -44,12 +45,14 @@ function Node(mac, meta = null, active = true) {
 }
 
 function updateNetwork(links, nodes, changedLinks, sourceNodeMac, targetNodeMac, value) {
-  getNodeByMac(nodes, sourceNodeMac) ? true : nodes.push({"o": new Node(sourceNodeMac, null, false), "index": nodes.length});
-  getNodeByMac(nodes, targetNodeMac) ? true : nodes.push({"o": new Node(targetNodeMac, null, false), "index": nodes.length});
-  
+  var sourceNode;
+  (sourceNode = getNodeByMac(nodes, sourceNodeMac)) ? true : sourceNode = nodes[nodes.push({"o": new Node(sourceNodeMac, null, false), "index": nodes.length}) - 1];
+  if (typeof tick !== 'undefined') nodes[sourceNode.index].lastSeen = tick;
+  var targetNode;
+  (targetNode = getNodeByMac(nodes, targetNodeMac)) ? true : targetNode = nodes[nodes.push({"o": new Node(targetNodeMac, null, false), "index": nodes.length}) - 1];
+  if (typeof tick !== 'undefined') nodes[targetNode.index].lastSeen = tick;
+
   if(!(link = getLinkByMacs(links, sourceNodeMac, targetNodeMac))) {
-    var sourceNode = getNodeByMac(nodes, sourceNodeMac);
-    var targetNode = getNodeByMac(nodes, targetNodeMac);
     link = {"index":links.length, "o":new Link(), "source":{"index":sourceNode.index, "o":sourceNode.o},"target":{"index":targetNode.index, "o":targetNode.o}}
     links.push(link);
     changedLinks.push(link);
@@ -64,14 +67,15 @@ function updateNetwork(links, nodes, changedLinks, sourceNodeMac, targetNodeMac,
 }
 
 Node.prototype.step = function () {
+  this.tick += 1;
   var dijkstra = createDijkstra(this.nodes, this.links);
   
   for (var i = 0; i < this.incoming.length; i += 1) {
     var packet = this.incoming[i];
 
     // Update network
-    updateNetwork(this.links, this.nodes, this.changedLinks, this.mac, packet.transmitterAddress, 100);
     
+    updateNetwork(this.links, this.nodes, this.changedLinks, this.mac, packet.transmitterAddress, 100, tick=this.tick);
     // Packet arrived at the destination
     if (packet.destinationAddress === this.mac) {
       console.log('packet arrived at the destination');
@@ -89,7 +93,7 @@ Node.prototype.step = function () {
       if(packet.packetType == 4) { // Packet is PEERS packet
         for(var ii = 0; ii < packet.data.dataLength; ii++) {
           var newLink = packet.data.data[ii]
-          updateNetwork(this.links, this.nodes, this.changedLinks, newLink.source, newLink.target, newLink.value);
+          updateNetwork(this.links, this.nodes, this.changedLinks, newLink.source, newLink.target, newLink.value, tick=this.tick);
         }
       }
       continue;
