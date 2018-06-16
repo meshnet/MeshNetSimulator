@@ -72,7 +72,9 @@ function createSim(graph) {
 
   function updateSimStatistics() {
     var packets_unicast = 0;
+    var unicast_bytes = 0;
     var packets_broadcast = 0;
+    var broadcast_bytes = 0;
 
     for (var id in self.routes) {
       self.routes[id].transitCount = 0;
@@ -90,6 +92,7 @@ function createSim(graph) {
           var isBroadcast = (packet.receiverAddress === BROADCAST_MAC);
           packets_unicast += !isBroadcast;
           packets_broadcast += isBroadcast;
+          isBroadcast ? unicast_bytes += packet.packetLength : broadcast_bytes += packet.packetLength;
         }
       }
     }
@@ -142,6 +145,7 @@ function createSim(graph) {
     $$('packets_broadcast').nodeValue = withPercent(packets_broadcast, packets_unicast + packets_broadcast);
     $$('packets_unicast').nodeValue = withPercent(packets_unicast, packets_unicast + packets_broadcast);
     $$('packets_per_node').nodeValue = intNodes.length ? ((packets_unicast + packets_broadcast) / intNodes.length).toFixed(2) : '-';
+    $$('bytes_per_packet').nodeValue = intNodes.length ? ((unicast_bytes + broadcast_bytes) / intNodes.length).toFixed(2) : '-';
 
     $$('routes_count').nodeValue = routesCount;
     $$('routes_packets_send').nodeValue = routesSend;
