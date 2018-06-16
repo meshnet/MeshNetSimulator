@@ -154,6 +154,15 @@ Node.prototype.reset = function () {
   this.incoming = [];
   this.outgoing = [];
   this.neighbors = {};
+
+  this.nodes = [];
+  this.links = [];
+  this.changedLinks = [];
+
+  // Send a PEERS message on join network
+  this.outgoing.push(
+    new Packet(13, 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers(0, []))
+  );
 }
 
 // For the transition to new implementations
