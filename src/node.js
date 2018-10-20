@@ -21,7 +21,7 @@ function Node(mac, meta = null, active = true) {
   this.mac = mac;
 
   if(!active) return // Dont init active components if not active
-  
+
   this.meta = meta;
   console.log(this.mac);
   this.incoming = [];
@@ -32,12 +32,12 @@ function Node(mac, meta = null, active = true) {
 
   // Record next hop neighbors
   this.neighbors = {};
-  
+
   // Keep a local version of the network
   this.nodes = [];
   this.links = [];
   this.changedLinks = [];
-  
+
   // Send a PEERS message on join network
   this.outgoing.push(
     new Packet(13, 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers(0, []))
@@ -69,12 +69,12 @@ function updateNetwork(links, nodes, changedLinks, sourceNodeMac, targetNodeMac,
 Node.prototype.step = function () {
   this.tick += 1;
   var dijkstra = createDijkstra(this.nodes, this.links);
-  
+
   for (var i = 0; i < this.incoming.length; i += 1) {
     var packet = this.incoming[i];
 
     // Update network
-    
+
     updateNetwork(this.links, this.nodes, this.changedLinks, this.mac, packet.transmitterAddress, 100, tick=this.tick);
     // Packet arrived at the destination
     if (packet.destinationAddress === this.mac) {
@@ -92,25 +92,25 @@ Node.prototype.step = function () {
     if (packet.receiverAddress === BROADCAST_MAC) {
       if(packet.packetType == 4) { // Packet is PEERS packet
         for(var ii = 0; ii < packet.data.dataLength; ii++) {
-          var newLink = packet.data.data[ii]
+          var newLink = packet.data.data[ii];
           updateNetwork(this.links, this.nodes, this.changedLinks, newLink.source, newLink.target, newLink.value, tick=this.tick);
         }
       }
       continue;
     }
-    
+
     // The packet needs to be routed
     var currentHop = getNodeByMac(this.nodes, this.mac);
     var finalHop = getNodeByMac(this.nodes, packet.destinationAddress);
     var nextHop = dijkstra.getShortestPath(finalHop, currentHop)[0];
-    
+
     console.log("Next hop: " + nextHop);
 
     packet.transmitterAddress = this.mac;
     packet.receiverAddress = nextHop;
     this.outgoing.push(packet);
   }
-  
+
   if(this.changedLinks.length > 0) {
     var packet = new Packet(12 + (1 + this.changedLinks.length * 5), 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers(this.changedLinks.length, []));
     for(var i = 0; i < this.changedLinks.length; i++) {
@@ -119,6 +119,25 @@ Node.prototype.step = function () {
     }
     this.outgoing.push(packet);
     this.changedLinks = [];
+  }
+
+  for(var i=0; i < this.nodes.length; i++) {
+    var node = this.nodes[i];
+    if(node.o.mac == this.mac) continue;
+    if((node.lastSeen + 30) < this.tick && node.timeoutState != 1) {
+      node.timeoutState = 1;
+      var currentHop = getNodeByMac(this.nodes, this.mac);
+      var finalHop = getNodeByMac(this.nodes, node.o.mac);
+      var nextHop = dijkstra.getShortestPath(finalHop, currentHop)[0];
+      console.log(currentHop, finalHop, nextHop);
+      this.outgoing.push(
+        new Packet(16, 1, this.mac, nextHop, this.mac, node.o.mac, [])
+      );
+      console.log(
+        new Packet(16, 1, this.mac, nextHop, this.mac, node.o.mac, [])
+      );
+    } // TODO: Remove node from memory if it doesn't respond in time
+    this.nodes[i] = node;
   }
 }
 
