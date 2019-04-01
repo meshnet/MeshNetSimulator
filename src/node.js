@@ -8,7 +8,6 @@ function Node(mac, meta = null, active = true) {
     return // Dont init active components if not active
 
   this.meta = meta;
-  console.log(this.mac);
   this.incoming = [];
   this.outgoing = [];
 
@@ -76,19 +75,18 @@ Node.prototype.handlePackets = function() {
   for (var i = 0; i < this.incoming.length; i += 1) {
     var packet = this.incoming[i];
 
+    console.log(this.mac + " received packet from " + packet.transmitterAddress + " for " + packet.destinationAddress + " with type " + packet.packetType);
+
     // Update network
 
     this.updateNetwork(this.links, this.nodes, this.changedLinks, this.mac, packet.transmitterAddress, 100, tick = this.tick);
+    this.getNodeByMac(this.nodes, packet.sourceAddress).lastSeen = this.tick;
+    this.getNodeByMac(this.nodes, packet.sourceAddress).timeoutState = 0;
     // Packet arrived at the destination
     if (packet.destinationAddress === this.mac) {
-      console.log('packet arrived at the destination');
       if (packet.packetType == 1) { // Ping packet
-        console.log("Ping packet!");
-        /*packet.destinationAddress = packet.sourceAddress;
-        packet.sourceAddress = this.mac;
-        packet.packetType = 2;
-        this.outgoing.push(packet);*/
         this.pong(packet.sourceAddress);
+      } else if (packet.type == 2) { // Pong packet
       }
       continue;
     }
@@ -110,6 +108,7 @@ Node.prototype.handlePackets = function() {
     var nextHop = dijkstra.getShortestPath(finalHop, currentHop)[0];
 
     console.log("Next hop: " + nextHop);
+    console.log(this.mac + " send packet to " + nextHop + " for " + packet.destinationAddress + " with type " + packet.packetType);
 
     packet.transmitterAddress = this.mac;
     packet.receiverAddress = nextHop;
@@ -122,7 +121,6 @@ Node.prototype.broadcastChangedLinks = function() {
     var packet = new Packet(12 + (1 + this.changedLinks.length * 5), 4, this.mac, BROADCAST_MAC, this.mac, BROADCAST_MAC, new Peers(this.changedLinks.length, []));
     for (var i = 0; i < this.changedLinks.length; i++) {
       var changedLink = this.changedLinks[i];
-      console.log(this.changedLinks, changedLink);
       packet.data.data.push({"source": changedLink.source.o.mac, "target": changedLink.target.o.mac, "value": changedLink.o.quality});
     }
     this.outgoing.push(packet);
@@ -153,6 +151,7 @@ Node.prototype.updateNetwork = function(links, nodes, changedLinks, sourceNodeMa
       }) - 1];
   if (typeof tick !== 'undefined')
     nodes[sourceNode.index].lastSeen = tick;
+    nodes[sourceNode.index].timeoutState = 0;
   var targetNode;
   (targetNode = this.getNodeByMac(nodes, targetNodeMac))
     ? true
@@ -162,6 +161,7 @@ Node.prototype.updateNetwork = function(links, nodes, changedLinks, sourceNodeMa
       }) - 1];
   if (typeof tick !== 'undefined')
     nodes[targetNode.index].lastSeen = tick;
+    nodes[targetNode.index].timeoutState = 0;
 
   if (!(link = this.getLinkByMacs(links, sourceNodeMac, targetNodeMac))) {
     link = {
